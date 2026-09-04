@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Space Invaders</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: #05070c;
+      color: #fff;
+      font: 16px system-ui, sans-serif;
+    }
+    canvas {
+      width: min(800px, 100%);
+      height: auto;
+      border: 2px solid #39455d;
+      background: #090d18;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="800" height="600" aria-label="Juego Space Invaders"></canvas>
+  <script>
+    'use strict';
+
+    const canvas = document.querySelector('#game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const keys = {};
+    const player = { x: 375, y: 550, w: 50, h: 18, speed: 7 };
+    const shots = [];
+    const enemies = [];
+    const SHOT_COOLDOWN_MS = 250;
+
+    let score = 0;
+    let enemyDirection = 1;
+    let gameState = '';
+    let lastShotAt = -SHOT_COOLDOWN_MS;
+
+    function createEnemyGrid() {
+      enemies.length = 0;
+      for (let row = 0; row < 4; row += 1) {
+        for (let column = 0; column < 9; column += 1) {
+          enemies.push({ x: 130 + column * 65, y: 70 + row * 42, w: 32, h: 20 });
+        }
+      }
+    }
+
+    function resetGame() {
+      player.x = (W - player.w) / 2;
+      shots.length = 0;
+      score = 0;
+      enemyDirection = 1;
+      gameState = '';
+      lastShotAt = performance.now() - SHOT_COOLDOWN_MS;
+      createEnemyGrid();
+    }
+
+    // Axis-aligned bounding-box collision test.
+    function overlaps(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x &&
+             a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function tryShoot(now) {
+      if (gameState || now - lastShotAt < SHOT_COOLDOWN_MS) return false;
+      shots.push({ x: player.x + player.w / 2 - 2, y: player.y - 10, w: 4, h: 10, speed: 9 });
+      lastShotAt = now;
+      return true;
+    }
+
+    addEventListener('keydown', (event) => {
+      const firePressed = event.key === ' ' || event.code === 'Space';
+      if (['ArrowLeft', 'ArrowRight', 'Enter'].includes(event.key) || firePressed) event.preventDefault();
+      keys[event.key] = true;
+
+      if ((event.key === 'r' || event.key === 'R' || event.key === 'Enter') && gameState) {
+        resetGame();
+      } else if (firePressed) {
+        tryShoot(performance.now());
+      }
+    });
+
+    addEventListener('keyup', (event) => { keys[event.key] = false; });
+
+    function update() {
+      if (gameState) return;
+
+      const movement = (keys.ArrowRight ? player.speed : 0) - (keys.ArrowLeft ? player.speed : 0);
+      player.x = Math.max(0, Math.min(W - player.w, player.x + movement));
+
+      for (const shot of shots) shot.y -= shot.speed;
+      for (let i = shots.length - 1; i >= 0; i -= 1) {
+        if (shots[i].y + shots[i].h < 0) shots.splice(i, 1);
+      }
+
+      let hitEdge = false;
+      for (const enemy of enemies) {
+        enemy.x += enemyDirection;
+        if (enemy.x < 0 || enemy.x + enemy.w > W) hitEdge = true;
+      }
+      if (hitEdge) {
+        enemyDirection *= -1;
+        for (const enemy of enemies) enemy.y += 16;
+      }
+
+      for (let shotIndex = shots.length - 1; shotIndex >= 0; shotIndex -= 1) {
+        for (let enemyIndex = enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
+          if (overlaps(shots[shotIndex], enemies[enemyIndex])) {
+            shots.splice(shotIndex, 1);
+            enemies.splice(enemyIndex, 1);
+            score += 10;
+            break;
+          }
+        }
+      }
+
+      if (enemies.length === 0) gameState = 'YOU WIN!';
+      else if (enemies.some((enemy) => enemy.y + enemy.h >= player.y)) gameState = 'GAME OVER';
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#fff';
+      for (const enemy of enemies) ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+      ctx.fillStyle = '#24e36b';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+      ctx.fillStyle = '#ffdf3f';
+      for (const shot of shots) ctx.fillRect(shot.x, shot.y, shot.w, shot.h);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px system-ui';
+      ctx.fillText(`PUNTOS: ${score}`, 16, 32);
+      if (gameState) {
+        ctx.font = 'bold 46px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(gameState, W / 2, H / 2 - 12);
+        ctx.font = '20px system-ui';
+        ctx.fillText('Pulsa R o Enter para reiniciar', W / 2, H / 2 + 30);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    function frame() {
+      update();
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    resetGame();
+    frame();
+  </script>
+</body>
+</html>

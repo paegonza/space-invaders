@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+vendor/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Cachés y builds
+.cache/
+dist/
+build/
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Entorno local (nunca versionar secretos)
+.env
+.env.local
+*.local
